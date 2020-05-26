@@ -497,20 +497,17 @@ class DirectMailUtility
         if ($group['query']) {
             $queryGenerator->init('dmail_queryConfig', $table);
             $queryGenerator->queryConfig = $queryGenerator->cleanUpQueryConfig(unserialize($group['query']));
-            $whereClause = $queryGenerator->getQuery($queryGenerator->queryConfig);
+            $queryGenerator->extFieldLists['queryFields'] = 'uid';
+            $select = $queryGenerator->getSelectQuery();
 
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-            $queryBuilder
-                ->getRestrictions()
-                ->removeAll()
-                ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
-            $res = $queryBuilder->select($table . '.uid')
-                ->from($table)
-                ->add('where', $whereClause)
-                ->execute();
+            /** @var Connection $connection */
+            $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
+            $result = $connection->executeQuery($select)->fetchAll();
 
-            while ($row = $res->fetch()) {
-                $outArr[] = $row['uid'];
+            if (!empty($result)) {
+                foreach ($result as $row) {
+                    $outArr[] = $row['uid'];
+                }
             }
         }
         return $outArr;
