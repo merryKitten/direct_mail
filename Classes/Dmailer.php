@@ -575,17 +575,17 @@ class Dmailer implements LoggerAwareInterface
     public function shipOfMail(int $mid, array $recipRow, string $tableKey): void
     {
         if ($this->dmailer_isSend($mid, (int)$recipRow['uid'], $tableKey) === false) {
-            $pt = GeneralUtility::milliseconds();
+            $pt = round(microtime(true) * 1000); // GeneralUtility::milliseconds();
             $recipRow = self::convertFields($recipRow);
 
             // write to dmail_maillog table. if it can be written, continue with sending.
             // if not, stop the script and report error
             $rC = 0;
-            $logUid = $this->dmailer_addToMailLog($mid, $tableKey . '_' . $recipRow['uid'], strlen($this->message), GeneralUtility::milliseconds() - $pt, $rC, $recipRow['email']);
+            $logUid = $this->dmailer_addToMailLog($mid, $tableKey . '_' . $recipRow['uid'], strlen($this->message),  round(microtime(true) * 1000) - $pt, $rC, $recipRow['email']);
 
             if ($logUid) {
                 $rC = $this->dmailer_sendAdvanced($recipRow, $tableKey);
-                $parsetime = GeneralUtility::milliseconds() - $pt;
+                $parsetime = round(microtime(true) * 1000);//GeneralUtility::milliseconds() - $pt;
 
                 $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_dmail_maillog');
                 $ok = $queryBuilder
@@ -676,15 +676,15 @@ class Dmailer implements LoggerAwareInterface
             $from_name = $this->getCharsetConverter()->conv($this->from_name, $this->charset, $this->backendCharset) ?? '';
 
             $mail = GeneralUtility::makeInstance(MailMessage::class);
-            $mail->setTo($this->from_email, $from_name);
-            $mail->setFrom($this->from_email, $from_name);
-            $mail->setSubject($subject);
+            $mail->to(new Address($this->from_email, $from_name));
+            $mail->from(new Address($this->from_email, $from_name));
+            $mail->subject($subject);
             
             if ($this->replyto_email !== '') {
-                $mail->setReplyTo($this->replyto_email);
+                $mail->replyTo($this->replyto_email);
             }
-
-            $mail->setBody($message);
+            // $mail->setBody($message);
+            $mail->html($message);
             $mail->send();
         }
     }
@@ -799,7 +799,7 @@ class Dmailer implements LoggerAwareInterface
         // always include locallang file
         $this->getLanguageService()->includeLLFile('EXT:direct_mail/Resources/Private/Language/locallang_mod2-6.xlf');
 
-        $pt = GeneralUtility::milliseconds();
+        $pt = round(microtime(true) * 1000); //GeneralUtility::milliseconds();
 
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_dmail');
         $queryBuilder
@@ -851,7 +851,7 @@ class Dmailer implements LoggerAwareInterface
             $this->logger->debug($this->getLanguageService()->getLL('dmailer_nothing_to_do'));
         }
 
-        $parsetime = GeneralUtility::milliseconds()-$pt;
+        $parsetime = round(microtime(true) * 1000); //GeneralUtility::milliseconds()-$pt;
         $this->logger->debug($this->getLanguageService()->getLL('dmailer_ending') . ' ' . $parsetime . ' ms');
     }
 
@@ -907,16 +907,32 @@ class Dmailer implements LoggerAwareInterface
         if ($this->includeMedia) {
             // extract all media path from the mail message
             $this->extractMediaLinks();
+           /* $stream = stream_context_create(array(
+                "ssl"=>array(
+                    "verify_peer"=> false,
+                    "verify_peer_name"=> false, ),
+                'http' => array(
+                    'timeout' => 30     ) )     );*/
+            
             foreach ($this->theParts['html']['media'] as $media) {
                 // TODO: why are there table related tags here?
                 if (($media['tag'] === 'img' || $media['tag'] === 'table' || $media['tag'] === 'tr' || $media['tag'] === 'td') && !$media['use_jumpurl'] && !$media['do_not_embed']) {
                     $fileContent = GeneralUtility::getUrl($media['absRef']);
-
+                 
                     // embed images using base64 encoding
                     $cid = 'data:' . mime_content_type(basename($media['absRef']))
-                        . ';base64,' . base64_encode($fileContent);
+                    . ';base64,' . base64_encode($fileContent);
                     $this->theParts['html']['content'] = str_replace($media['subst_str'], $cid, $this->theParts['html']['content']);
                     unset($fileContent);
+                    //$fileContent =file_get_contents($media['absRef'], 0, $stream);
+                    // embed images using base64 encoding
+                 //   debug(strlen($fileContent));
+/*                    $type = pathinfo($media['subst_str'] , PATHINFO_EXTENSION);
+                    $type = $type === 'jpg' ?  'jpeg' : $type;
+                    $cid = 'data:image/'.$type*/
+                   
+                  //  $cid = 'data:' . mime_content_type($media['absRef'])
+                 
                 }
             }
             // remove ` do_not_embed="1"` attributes
@@ -1134,6 +1150,7 @@ class Dmailer implements LoggerAwareInterface
     {
         $content = $this->substHTTPurlsInPlainText($content);
         $this->setPlain($this->encodeMsg($content));
+     //   $this->setPlain($content);
     }
 
     /**

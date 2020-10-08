@@ -1256,7 +1256,6 @@ class DirectMailUtility
         $plainTextUrl = $urls['plainTextUrl'];
         $htmlUrl = $urls['htmlUrl'];
         $urlBase = $urls['baseUrl'];
-
         // Make sure long_link_rdct_url is consistent with baseUrl.
         $row['long_link_rdct_url'] = $urlBase;
 
@@ -1281,9 +1280,10 @@ class DirectMailUtility
         $htmlmail->http_password = $params['http_password'];
         $htmlmail->simulateUsergroup = $params['simulate_usergroup'];
         $htmlmail->includeMedia = $row['includeMedia'];
-
+     
         if ($plainTextUrl) {
             $mailContent = GeneralUtility::getURL(self::addUserPass($plainTextUrl, $params), 0, array('User-Agent: Direct Mail'));
+                 
             $htmlmail->addPlain($mailContent);
             if (!$mailContent || !$htmlmail->theParts['plain']['content']) {
                 $errorMsg[] = $GLOBALS['LANG']->getLL('dmail_no_plain_content');
